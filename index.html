@@ -987,11 +987,29 @@ div.panel.area-performance-panel>.tw>table{height:auto!important}
 div.panel.area-performance-panel>.tw>table tbody tr{height:29px!important}
 div.panel.area-performance-panel>.tw>table thead tr{height:31px!important}
 </style>
+
+<style id="multi-date-filter">
+.date-multi{position:relative;min-width:190px;z-index:50}
+.date-multi-button{width:100%;min-height:40px;padding:9px 34px 9px 14px;border:1px solid #b9d7ee;border-radius:10px;background:#fff;color:#173f66;font-size:14px;text-align:left;cursor:pointer;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.date-multi-button:after{content:"▾";position:absolute;right:12px;top:9px;color:#52708a;font-size:14px}
+.date-multi-menu{display:none;position:absolute;left:0;top:calc(100% + 5px);width:100%;min-width:210px;max-height:280px;overflow:auto;background:#fff;border:1px solid #b9d7ee;border-radius:10px;box-shadow:0 8px 24px rgba(20,60,100,.14);padding:6px;z-index:9999}
+.date-multi.open .date-multi-menu{display:block}
+.date-multi-item{display:flex;align-items:center;gap:9px;padding:9px 8px;border-radius:7px;color:#173f66;font-size:14px;cursor:pointer}
+.date-multi-item:hover{background:#eef7fd}
+.date-multi-item input{width:16px;height:16px;accent-color:#1976d2;cursor:pointer}
+.date-multi-actions{display:flex;gap:6px;padding:6px 4px 4px;border-bottom:1px solid #e2edf5;margin-bottom:4px}
+.date-multi-actions button{border:1px solid #b9d7ee;background:#f7fbfe;border-radius:7px;padding:5px 8px;font-size:12px;color:#174c78;cursor:pointer}
+.date-multi-hint{padding:5px 8px 3px;color:#6a8194;font-size:11px}
+@media(max-width:700px){.date-multi{min-width:170px}.date-multi-menu{min-width:190px}}
+</style>
 </head><body>
 <div class="header"><h1><span class="ww-mark">W&amp;W</span><span class="ww-title"> TRUE ONLINE</span><span class="ww-sep"> — </span><span class="ww-title">DAILY SALE PERFORMANCE</span></h1><p id="headerDate">Daily View · QTY = Primary KPI · 15 Area Master Order · Oct 2026 · Area / Channel Drilldown</p></div>
 <div class="wrap"><div class="target-master-note">Daily Target ยึดจาก Target TOL Perday W1 Oct'26 เป็น Master · QTY Target = 404 / day · Data Actual: 1–6 Oct 2026</div>
 <div class="toolbar">
-<select id="dateSelect" title="Select Date"></select>
+<div class="date-multi" id="dateMulti">
+  <button type="button" id="dateMultiButton" class="date-multi-button" aria-haspopup="listbox" aria-expanded="false">เลือกวันที่</button>
+  <div id="dateMultiMenu" class="date-multi-menu" role="listbox" aria-multiselectable="true"></div>
+</div>
 <select id="areaSelect"><option value="">All 15 Areas</option></select>
 <select id="channelSelect"><option value="">All Channels</option><option>True Shop</option><option>DTAC Shop</option></select>
 <button id="resetMain" type="button">Reset / All</button>
@@ -1095,14 +1113,21 @@ const num=n=>new Intl.NumberFormat("th-TH",{maximumFractionDigits:0}).format(Mat
 const pct=n=>n==null||!isFinite(n)?"—":(Number(n)*100).toFixed(1)+"%";
 const money=num; const gapHtml=n=>{const v=Math.round(Number(n)||0);const cls=v>0?"good":v<0?"bad":"neutral";return `<span class="${cls}">${v>0?"+":""}${money(v)}</span>`};
 
-let filter={date:"2026-10-06",area:"",channel:"",shop:""};
+let filter={date:"2026-10-06",dates:["2026-10-06"],area:"",channel:"",shop:""};
 let charts={};
-
+function isSelectedDate(v){ const d=String(v??"").trim(); return !filter.dates?.length || filter.dates.includes(d); }
+function selectedDateText(){
+  const ds=[...(filter.dates||[])].sort();
+  if(!ds.length) return "All Dates";
+  const fmt=d=>{const dt=new Date(d+"T00:00:00");return isNaN(dt)?d:dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});};
+  if(ds.length===1) return fmt(ds[0]);
+  return ds.map(fmt).join(", ");
+}
 function inScopeShop(x){
-  return (!filter.date||x.Date===filter.date)&&(!filter.area||x.Area===filter.area)&&(!filter.channel||x["Shop Channel"]===filter.channel)&&(!filter.shop||x["Shop Code"]===filter.shop);
+  return isSelectedDate(x.Date)&&(!filter.area||x.Area===filter.area)&&(!filter.channel||x["Shop Channel"]===filter.channel)&&(!filter.shop||x["Shop Code"]===filter.shop);
 }
 function inScopeRow(x){
-  return (!filter.date||x.Date===filter.date)&&(!filter.area||x.Area===filter.area)&&(!filter.channel||x["Shop Channel"]===filter.channel)&&(!filter.shop||x["Shop Code"]===filter.shop);
+  return isSelectedDate(x.Date)&&(!filter.area||x.Area===filter.area)&&(!filter.channel||x["Shop Channel"]===filter.channel)&&(!filter.shop||x["Shop Code"]===filter.shop);
 }
 function scopeShops(){return shops.filter(inScopeShop)}
 function scopeRows(){return rows.filter(inScopeRow)}
@@ -1139,7 +1164,7 @@ function renderCards(){
   document.getElementById("cards").innerHTML=`
   <div class="cards">
     <div class="card"><div class="label">QTY ACTUAL</div><div class="value">${money(m.ar)}</div><div class="sub">PRIMARY KPI</div></div>
-    <div class="card"><div class="label">DAILY QTY TARGET</div><div class="value">${money(m.tr)}</div><div class="sub">Fixed Daily Target</div></div>
+    <div class="card"><div class="label">QTY TARGET</div><div class="value">${money(m.tr)}</div><div class="sub">${(filter.dates||[]).length} day${(filter.dates||[]).length>1?"s":""} · 404/day</div></div>
     <div class="card"><div class="label">QTY ACHIEVEMENT</div><div class="value ${ach>=1?"good":"bad"}">${pct(ach)}</div><div class="sub">Actual ÷ Target</div></div>
     <div class="card"><div class="label">QTY GAP</div><div class="value">${gapHtml(gap)}</div><div class="sub">Actual − Target</div></div>
     <div class="card"><div class="label">CLOSED QTY</div><div class="value">${money(m.as)}</div><div class="sub">Same as Actual QTY</div></div>
@@ -1148,13 +1173,13 @@ function renderCards(){
     <div class="card"><div class="label">APPROACH</div><div class="value">${num(m.ap)}</div></div>
     <div class="card"><div class="label">CONVERSION</div><div class="value">${pct(conv)}</div><div class="sub">Closed ÷ Approach</div></div>
     <div class="card"><div class="label">NOT CLOSED</div><div class="value">${num(m.nc)}</div><div class="sub">Diagnostic / Root Cause</div></div>
-    <div class="card"><div class="label">SELECTED DATE</div><div class="value" style="font-size:20px">${new Date(filter.date+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}</div><div class="sub">Daily View</div></div>
+    <div class="card"><div class="label">SELECTED DATE(S)</div><div class="value" style="font-size:${(filter.dates||[]).length>1?"16px":"20px"}">${escHTML(selectedDateText())}</div><div class="sub">Combined View</div></div>
   </div>`;
 }
 function renderAreaChart(){
   // Keep the complete 15-Area master chart visible even when an Area is selected.
   // The selected Area is highlighted instead of filtering the other Areas out.
-  const base=shops.filter(x=>!filter.date||x.Date===filter.date)
+  const base=shops.filter(x=>isSelectedDate(x.Date))
     .filter(x=>!filter.channel||x["Shop Channel"]===filter.channel);
   const vals=MASTER.map(area=>{const z=base.filter(x=>x.Area===area);
     return {a:z.reduce((s,x)=>s+(Number(x.Actual_Sub)||0),0),
@@ -1190,7 +1215,7 @@ function renderAreaTable(){
   // Executive ranking panel: ALWAYS keep the full 15-area ranking.
   // Area / Channel / Shop drill-down selections must NOT filter or reorder it.
   // Only the selected Area is highlighted.
-  const base=shops.filter(x=>!filter.date || x.Date===filter.date);
+  const base=shops.filter(x=>isSelectedDate(x.Date));
 
   const areaRows=MASTER.map(area=>{
     const z=base.filter(x=>x.Area===area);
@@ -1219,7 +1244,16 @@ function renderAreaTable(){
 function renderShopDrill(){
   const box=document.getElementById("detail"), title=document.getElementById("detailTitle");
   if(!filter.area){box.classList.remove("show");return}
-  const z=shops.filter(x=>inScopeShop(x)&&x.Area===filter.area).sort((a,b)=>{
+  const scoped=shops.filter(x=>inScopeShop(x)&&x.Area===filter.area);
+  const map=new Map();
+  scoped.forEach(x=>{
+    const code=String(x["Shop Code"]||"");
+    const key=code||String(x["Shop Name"]||"");
+    if(!map.has(key)) map.set(key,{...x,"Daily Target Sub":0,"Actual_Sub":0,"Approach":0,"Not_Closed":0});
+    const y=map.get(key);
+    ["Daily Target Sub","Actual_Sub","Approach","Not_Closed"].forEach(k=>y[k]=(Number(y[k])||0)+(Number(x[k])||0));
+  });
+  const z=[...map.values()].sort((a,b)=>{
     const at=Number(a["Daily Target Sub"])||0, aa=Number(a.Actual_Sub)||0;
     const bt=Number(b["Daily Target Sub"])||0, ba=Number(b.Actual_Sub)||0;
     const achA=at>0?aa/at:-Infinity, achB=bt>0?ba/bt:-Infinity;
@@ -1246,7 +1280,7 @@ function renderShopNC(){
   const z=(DATA.rows||[]).filter(x=>{
     const isNC=x["Not Closed"]===true || String(x["Not Closed"]).toLowerCase()==="true";
     return isNC
-      && (!filter.date || String(x.Date)===String(filter.date))
+      && isSelectedDate(x.Date)
       && (!filter.area || String(x.Area)===String(filter.area))
       && (!filter.channel || String(x["Shop Channel"])===String(filter.channel))
       && (!filter.shop || String(x["Shop Code"])===String(filter.shop));
@@ -1403,7 +1437,9 @@ function renderTOLDiagnosticPanels(){
 }
 
 function refresh(){
-  renderCards();renderAreaChart();renderChannelChart();renderAreaTable();renderShopDrill();renderShopNC();renderTop();renderActions();updateFilterUI();renderTOLDiagnosticPanels();
+  // Synchronize filters FIRST, then render every panel from the same selected-date state.
+  updateFilterUI();
+  renderCards();renderAreaChart();renderChannelChart();renderAreaTable();renderShopDrill();renderShopNC();renderTop();renderActions();renderTOLDiagnosticPanels();
 }
 function selectArea(a){filter.area=(filter.area===a)?"":a;filter.channel="";filter.shop="";refresh()}
 function selectChannel(c){filter.channel=(filter.channel===c)?"":c;filter.shop="";refresh()}
@@ -1411,7 +1447,7 @@ function selectShop(code){
   const next=(filter.shop===code)?"":code;
   filter.shop=next;
   if(filter.shop){
-    const selected=shops.find(x=>String(x.Date)===String(filter.date)&&String(x["Shop Code"])===String(filter.shop))
+    const selected=shops.find(x=>isSelectedDate(x.Date)&&String(x["Shop Code"])===String(filter.shop))
       || shops.find(x=>String(x["Shop Code"])===String(filter.shop));
     if(selected){
       filter.area=selected.Area||"";
@@ -1432,19 +1468,18 @@ function resetFilters(){
   // then force the dashboard state to the agreed default view.
   // This avoids any stale select value remaining after a drill-down.
   const dates=[...new Set(rows.map(x=>String(x.Date||"").trim()).filter(Boolean))].sort();
-  const resetDate=dates.includes("2026-09-24")?"2026-09-24":(dates[dates.length-1]||"");
+  const resetDate=dates.includes("2026-10-06")?"2026-10-06":(dates[dates.length-1]||"");
 
   // Force application state.
   filter.date=resetDate;
+  filter.dates=[resetDate].filter(Boolean);
   filter.area="";
   filter.channel="";
   filter.shop="";
 
   // Force controls to the same state BEFORE rendering.
-  const ds=document.getElementById("dateSelect");
   const as=document.getElementById("areaSelect");
   const cs=document.getElementById("channelSelect");
-  if(ds) ds.value=resetDate;
   if(as) as.value="";
   if(cs) cs.value="";
 
@@ -1455,7 +1490,6 @@ function resetFilters(){
 
   // Re-render once, then re-apply the exact UI values after updateFilterUI().
   refresh();
-  if(ds) ds.value=resetDate;
   if(as) as.value="";
   if(cs) cs.value="";
   document.querySelectorAll(".tab").forEach(b=>{
@@ -1496,7 +1530,6 @@ function getAvailableShops(){
 function updateFilterUI(){
   const areaSel=document.getElementById("areaSelect");
   const channelSel=document.getElementById("channelSelect");
-  const ds=document.getElementById("dateSelect");
   const currentArea=filter.area||"";
   areaSel.innerHTML='<option value="">All 15 Areas</option>'+MASTER.map(a=>`<option value="${escHTML(a)}">${escHTML(a)}</option>`).join("");
   areaSel.value=currentArea;
@@ -1507,11 +1540,11 @@ function updateFilterUI(){
   if(!channels.includes(filter.channel)) filter.channel="";
   channelSel.value=filter.channel||"";
   const dates=[...new Set(rows.map(x=>String(x.Date||"").trim()).filter(Boolean))].sort();
-  if(ds){
-    const wanted=dates.includes(String(filter.date))?String(filter.date):(dates[dates.length-1]||"");
-    ds.innerHTML=dates.map(d=>{const dt=new Date(d+"T00:00:00");const label=isNaN(dt)?d:dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});return `<option value="${escHTML(d)}">${escHTML(label)}</option>`;}).join("");
-    filter.date=wanted; ds.value=wanted;
-  }
+  const validDates=(filter.dates||[]).filter(d=>dates.includes(d));
+  if(!validDates.length && dates.length) validDates.push(dates[dates.length-1]);
+  filter.dates=validDates;
+  filter.date=validDates[0]||"";
+  renderDateMulti(dates);
     const ncArea=document.getElementById("ncArea");
   const ncChannel=document.getElementById("ncChannel");
   if(ncArea) ncArea.value=currentArea;
@@ -1524,18 +1557,42 @@ function populate(){
   const reasonArea=document.getElementById("reasonArea");
   const tolReasonArea=document.getElementById("tolReasonArea");
   const ncArea=document.getElementById("ncArea");
-  const ds=document.getElementById("dateSelect");
   areaSel.innerHTML='<option value="">All 15 Areas</option>'+MASTER.map(x=>`<option value="${escHTML(x)}">${escHTML(x)}</option>`).join("");
   if(reasonArea) reasonArea.innerHTML='<option value="">All Areas</option>'+MASTER.map(x=>`<option value="${escHTML(x)}">${escHTML(x)}</option>`).join("");
   if(tolReasonArea) tolReasonArea.innerHTML='<option value="">All Areas</option>'+MASTER.map(x=>`<option value="${escHTML(x)}">${escHTML(x)}</option>`).join("");
   if(ncArea) ncArea.innerHTML='<option value="">All Areas</option>'+MASTER.map(x=>`<option value="${escHTML(x)}">${escHTML(x)}</option>`).join("");
   const dates=[...new Set(rows.map(x=>String(x.Date||"").trim()).filter(Boolean))].sort();
-  ds.innerHTML=dates.map(d=>{const dt=new Date(d+"T00:00:00");const label=isNaN(dt)?d:dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});return `<option value="${escHTML(d)}">${escHTML(label)}</option>`;}).join("");
-  filter.date=dates.includes("2026-09-24")?"2026-09-24":(dates[dates.length-1]||"");
+  const defaultDate=dates.includes("2026-10-06")?"2026-10-06":(dates[dates.length-1]||"");
+  filter.date=defaultDate; filter.dates=defaultDate?[defaultDate]:[];
   filter.area=""; filter.channel=""; filter.shop="";
-  ds.value=filter.date; areaSel.value="";
+  areaSel.value="";
+  renderDateMulti(dates);
 }
-document.getElementById("dateSelect").addEventListener("change",e=>{filter.date=e.target.value;filter.area="";filter.channel="";filter.shop="";refresh()});
+function renderDateMulti(dates){
+  const btn=document.getElementById("dateMultiButton"), menu=document.getElementById("dateMultiMenu");
+  if(!btn||!menu) return;
+  const selected=new Set(filter.dates||[]);
+  const fmt=d=>{const dt=new Date(d+"T00:00:00");return isNaN(dt)?d:dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});};
+  menu.innerHTML=`<div class="date-multi-actions"><button type="button" id="dateSelectAll">Select All</button><button type="button" id="dateClearAll">Clear</button></div><div class="date-multi-hint">เลือกได้มากกว่า 1 วัน · ระบบจะรวมข้อมูลตามวันที่เลือก</div>`+
+    dates.map(d=>`<label class="date-multi-item"><input type="checkbox" value="${escHTML(d)}" ${selected.has(d)?"checked":""}><span>${escHTML(fmt(d))}</span></label>`).join("");
+  const label=selected.size===0?"Select Date":selected.size===1?fmt([...selected][0]):`${selected.size} Dates Selected`;
+  btn.textContent=label;
+  menu.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change",()=>{
+    const vals=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value).sort();
+    filter.dates=vals;
+    filter.date=vals[0]||"";
+    filter.area="";filter.channel="";filter.shop="";
+    refresh();
+    document.getElementById("dateMulti")?.classList.add("open");
+  }));
+  const all=menu.querySelector("#dateSelectAll"), clear=menu.querySelector("#dateClearAll");
+  if(all) all.addEventListener("click",()=>{filter.dates=[...dates];filter.date=filter.dates[0]||"";filter.area="";filter.channel="";filter.shop="";refresh();document.getElementById("dateMulti")?.classList.add("open")});
+  if(clear) clear.addEventListener("click",()=>{filter.dates=[];filter.date="";filter.area="";filter.channel="";filter.shop="";refresh();document.getElementById("dateMulti")?.classList.add("open")});
+}
+const dateMulti=document.getElementById("dateMulti");
+const dateMultiButton=document.getElementById("dateMultiButton");
+if(dateMultiButton) dateMultiButton.addEventListener("click",()=>{const open=!dateMulti.classList.contains("open");dateMulti.classList.toggle("open",open);dateMultiButton.setAttribute("aria-expanded",String(open));});
+document.addEventListener("click",e=>{if(dateMulti&&!dateMulti.contains(e.target)){dateMulti.classList.remove("open");dateMultiButton?.setAttribute("aria-expanded","false");}});
 document.getElementById("areaSelect").addEventListener("change",e=>{
   filter.area=e.target.value;
   filter.channel="";
